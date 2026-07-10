@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { pool } from "../db";
+import Controller from "./baseController";
 
 /**
  * @swagger
@@ -85,45 +86,43 @@ import { pool } from "../db";
  *         description: Installment payment registered successfully
  */
 
-export const registerLoan = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
-  const { account_id, total_amount, interest_rate, start_date, end_date } =
-    req.body;
+class LoanController extends Controller {
+  async registerLoan(req: Request, res: Response): Promise<void> {
+    const { account_id, total_amount, interest_rate, start_date, end_date } =
+      req.body;
 
-  try {
-    const query = `
+    try {
+      const query = `
             INSERT INTO Loan (account_id, total_amount, interest_rate, start_date, end_date)
             VALUES ($1, $2, $3, $4, $5)
             RETURNING *;
         `;
-    const values = [
-      account_id,
-      total_amount,
-      interest_rate,
-      start_date,
-      end_date,
-    ];
+      const values = [
+        account_id,
+        total_amount,
+        interest_rate,
+        start_date,
+        end_date,
+      ];
 
-    const result = await pool.query(query, values);
-    res
-      .status(201)
-      .json({ message: "Loan registered successfully.", loan: result.rows[0] });
-  } catch (error: any) {
-    console.error("Error registering loan:", error);
-    res.status(500).json({ error: "Error occurred while registering loan." });
+      const result = await pool.query(query, values);
+      this.successResponse(
+        res,
+        201,
+        "Loan registered successfully.",
+        result.rows[0],
+      );
+    } catch (error: any) {
+      console.error("Error registering loan:", error);
+      this.errorResponse(res, 500, "Error occurred while registering loan.");
+    }
   }
-};
 
-export const getLoanStatus = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
-  const { loanId } = req.params;
+  async getLoanStatus(req: Request, res: Response): Promise<void> {
+    const { loanId } = req.params;
 
-  try {
-    const query = `
+    try {
+      const query = `
             SELECT l.*, 
                    COALESCE(json_agg(i.*) FILTER (WHERE i.installment_id IS NOT NULL), '[]') as installments
             FROM Loan l
@@ -131,48 +130,63 @@ export const getLoanStatus = async (
             WHERE l.loan_id = $1
             GROUP BY l.loan_id;
         `;
-    const result = await pool.query(query, [loanId]);
+      const result = await pool.query(query, [loanId]);
 
-    if (result.rows.length === 0) {
-      res.status(404).json({ message: "Loan not found." });
-      return;
+      if (result.rows.length === 0) {
+        this.errorResponse(res, 404, "Loan not found.");
+        return;
+      }
+
+      this.successResponse(
+        res,
+        200,
+        "Loan status and installment list retrieved successfully.",
+        result.rows[0],
+      );
+    } catch (error: any) {
+      console.error("Error fetching loan status:", error);
+      this.errorResponse(
+        res,
+        500,
+        "Error occurred while fetching loan status.",
+      );
     }
-
-    res.status(200).json(result.rows[0]);
-  } catch (error: any) {
-    console.error("Error fetching loan status:", error);
-    res.status(500).json({ error: "Error occurred while fetching loan status." });
   }
-};
 
-export const payInstallment = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
-  const { installmentId } = req.params;
+  async payInstallment(req: Request, res: Response): Promise<void> {
+    const { installmentId } = req.params;
 
-  try {
-    const query = `
+    try {
+      const query = `
             UPDATE Installment 
             SET status = 'Paid', payment_date = CURRENT_DATE 
             WHERE installment_id = $1 AND status = 'Pending'
             RETURNING *;
         `;
-    const result = await pool.query(query, [installmentId]);
+      const result = await pool.query(query, [installmentId]);
 
-    if (result.rows.length === 0) {
-      res
-        .status(400)
-        .json({ message: "Installment not found or already paid." });
-      return;
+      if (result.rows.length === 0)
+        return this.errorResponse(
+          res,
+          400,
+          "Installment not found or already paid.",
+        );
+
+      this.successResponse(
+        res,
+        200,
+        "Installment payment registered successfully.",
+        result.rows[0],
+      );
+    } catch (error: any) {
+      console.error("Error paying installment:", error);
+      this.errorResponse(
+        res,
+        500,
+        "Error occurred while registering installment payment.",
+      );
     }
-
-    res.status(200).json({
-      message: "Installment payment registered successfully.",
-      installment: result.rows[0],
-    });
-  } catch (error: any) {
-    console.error("Error paying installment:", error);
-    res.status(500).json({ error: "Error occurred while registering installment payment." });
   }
-};
+}
+
+export default new LoanController();

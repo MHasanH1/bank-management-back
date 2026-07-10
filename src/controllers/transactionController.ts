@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { pool } from "../db";
+import Controller from "./baseController";
 
 /**
  * @swagger
@@ -35,6 +36,8 @@ import { pool } from "../db";
  *     responses:
  *       201:
  *         description: Deposit completed successfully
+ *       400:
+ *         description: Invalid transaction type or insufficient account balance
  */
 
 /**
@@ -100,87 +103,98 @@ import { pool } from "../db";
  *         description: Transfer completed successfully
  */
 
-const executeTransaction = async (
-  accountId: number,
-  typeTitle: string,
-  amount: number,
-  destAccountId: number | null,
-  description: string,
-  res: Response,
-) => {
-  try {
-    const typeQuery = `SELECT transaction_type_id FROM TransactionType WHERE title = $1;`;
-    const typeResult = await pool.query(typeQuery, [typeTitle]);
+class TransactionController extends Controller {
+  async executeTransaction(
+    accountId: number,
+    typeTitle: string,
+    amount: number,
+    destAccountId: number | null,
+    description: string,
+    res: Response,
+  ) {
+    try {
+      const typeQuery = `SELECT transaction_type_id FROM TransactionType WHERE title = $1;`;
+      const typeResult = await pool.query(typeQuery, [typeTitle]);
 
-    if (typeResult.rows.length === 0) {
-      return res.status(400).json({ error: "Invalid transaction type." });
-    }
+      if (typeResult.rows.length === 0) {
+        return this.errorResponse(res, 400, "Invalid transaction type.");
+      }
 
-    const typeId = typeResult.rows[0].transaction_type_id;
+      const typeId = typeResult.rows[0].transaction_type_id;
 
-    const insertQuery = `
+      const insertQuery = `
             INSERT INTO Transaction (account_id, transaction_type_id, amount, destination_account_id, description)
             VALUES ($1, $2, $3, $4, $5)
             RETURNING *;
         `;
-    const insertValues = [
-      accountId,
-      typeId,
-      amount,
-      destAccountId,
-      description,
-    ];
+      const insertValues = [
+        accountId,
+        typeId,
+        amount,
+        destAccountId,
+        description,
+      ];
 
-    const result = await pool.query(insertQuery, insertValues);
-    res.status(201).json({
-      message: "Transaction completed successfully.",
-      transaction: result.rows[0],
-    });
-  } catch (error: any) {
-    if (error.code === "23514") {
-      return res.status(400).json({ error: "Insufficient account balance." });
+      const result = await pool.query(insertQuery, insertValues);
+      this.successResponse(
+        res,
+        201,
+        "Transaction completed successfully.",
+        result.rows[0],
+      );
+    } catch (error: any) {
+      if (error.code === "23514") {
+        return this.errorResponse(res, 400, "Insufficient account balance.");
+      }
+      console.error(`Error in ${typeTitle}:`, error);
+      this.errorResponse(
+        res,
+        500,
+        "Error occurred while processing transaction.",
+      );
     }
-    console.error(`Error in ${typeTitle}:`, error);
-    res.status(500).json({ error: "Error occurred while processing transaction." });
   }
-};
 
-export const deposit = async (req: Request, res: Response): Promise<void> => {
-  const { account_id, amount, description } = req.body;
-  await executeTransaction(
-    account_id,
-    "Deposit",
-    amount,
-    null,
-    description,
-    res,
-  );
-};
-
-export const withdraw = async (req: Request, res: Response): Promise<void> => {
-  const { account_id, amount, description } = req.body;
-  await executeTransaction(
-    account_id,
-    "Withdrawal",
-    amount,
-    null,
-    description,
-    res,
-  );
-};
-
-export const transfer = async (req: Request, res: Response): Promise<void> => {
-  const { account_id, destination_account_id, amount, description } = req.body;
-  if (!destination_account_id) {
-    res.status(400).json({ error: "Destination account ID is required." });
-    return;
+  async deposit(req: Request, res: Response): Promise<void> {
+    const { account_id, amount, description } = req.body;
+    await this.executeTransaction(
+      account_id,
+      "Deposit",
+      amount,
+      null,
+      description,
+      res,
+    );
   }
-  await executeTransaction(
-    account_id,
-    "Transfer",
-    amount,
-    destination_account_id,
-    description,
-    res,
-  );
-};
+
+  async withdraw(req: Request, res: Response): Promise<void> {
+    const { account_id, amount, description } = req.body;
+    await this.executeTransaction(
+      account_id,
+      "Withdrawal",
+      amount,
+      null,
+      description,
+      res,
+    );
+  }
+
+  async transfer(req: Request, res: Response): Promise<void> {
+    const { account_id, destination_account_id, amount, description } =
+      req.body;
+    if (!destination_account_id) {
+      res.status(400).json({ error: "Destination account ID is required." });
+      return;
+    }
+    await this.executeTransaction(
+      account_id,
+      "Transfer",
+      amount,
+      destination_account_id,
+      description,
+      res,
+    );
+  }
+}
+
+export default new TransactionController();

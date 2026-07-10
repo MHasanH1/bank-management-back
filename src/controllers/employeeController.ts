@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { pool } from "../db";
+import Controller from "./baseController";
 
 /**
  * @swagger
@@ -43,27 +44,30 @@ import { pool } from "../db";
  *         description: Employee registered successfully
  */
 
-export const registerEmployee = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
-  const { first_name, last_name, national_id, branch_id, user_id } = req.body;
+class EmployeeController extends Controller {
+  async registerEmployee(req: Request, res: Response): Promise<void> {
+    const { first_name, last_name, national_id, branch_id, user_id } = req.body;
 
-  try {
-    const query = `
-            INSERT INTO Employee (first_name, last_name, national_id, branch_id, user_id)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING *;
-        `;
-    const values = [first_name, last_name, national_id, branch_id, user_id];
+    try {
+      const query = `
+              INSERT INTO Employee (first_name, last_name, national_id, branch_id, user_id)
+              VALUES ($1, $2, $3, $4, $5)
+              RETURNING *;
+          `;
+      const values = [first_name, last_name, national_id, branch_id, user_id];
 
-    const result = await pool.query(query, values);
-    res.status(201).json({
-      message: "Employee registered successfully.",
-      employee: result.rows[0],
-    });
-  } catch (error: any) {
-    console.error("Error registering employee:", error);
-    res.status(500).json({ error: "Error occurred while registering employee." });
+      const result = await pool.query(query, values);
+      res.status(201).json({
+        message: "Employee registered successfully.",
+        employee: result.rows[0],
+      });
+    } catch (error: any) {
+      console.error("Error registering employee:", error);
+      res
+        .status(500)
+        .json({ error: "Error occurred while registering employee." });
+    }
   }
-};
+}
+
+export default new EmployeeController();

@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { pool } from "../db";
+import Controller from "./baseController";
 
 /**
  * @swagger
@@ -98,74 +99,85 @@ import { pool } from "../db";
  *         description: Customer information updated
  */
 
-export const addCustomer = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
-  const { first_name, last_name, national_id, phone_number, address } =
-    req.body;
+class CustomerController extends Controller {
+  async addCustomer(req: Request, res: Response): Promise<void> {
+    const { first_name, last_name, national_id, phone_number, address } =
+      req.body;
 
-  try {
-    const query = `
-            INSERT INTO Customer (first_name, last_name, national_id, phone_number, address)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING *;
-        `;
-    const values = [first_name, last_name, national_id, phone_number, address];
+    try {
+      const query = `
+              INSERT INTO Customer (first_name, last_name, national_id, phone_number, address)
+              VALUES ($1, $2, $3, $4, $5)
+              RETURNING *;
+          `;
+      const values = [
+        first_name,
+        last_name,
+        national_id,
+        phone_number,
+        address,
+      ];
 
-    const result = await pool.query(query, values);
-    res
-      .status(201)
-      .json({ message: "Customer added successfully.", customer: result.rows[0] });
-  } catch (error: any) {
-    console.error("Error adding customer:", error);
-    res.status(500).json({ error: "Error occurred while adding customer." });
-  }
-};
-
-export const searchCustomer = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
-  const { national_id } = req.query;
-
-  try {
-    const query = `SELECT * FROM Customer WHERE national_id = $1;`;
-    const result = await pool.query(query, [national_id]);
-
-    if (result.rows.length === 0) {
-      res.status(404).json({ message: "Customer not found." });
-      return;
+      const result = await pool.query(query, values);
+      res
+        .status(201)
+        .json({
+          message: "Customer added successfully.",
+          customer: result.rows[0],
+        });
+    } catch (error: any) {
+      console.error("Error adding customer:", error);
+      res.status(500).json({ error: "Error occurred while adding customer." });
     }
-
-    res.status(200).json(result.rows[0]);
-  } catch (error: any) {
-    console.error("Error searching customer:", error);
-    res.status(500).json({ error: "Error occurred while searching for customer." });
   }
-};
 
-export const updateCustomer = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
-  const { id } = req.params;
-  const { phone_number, address } = req.body;
+  async searchCustomer(req: Request, res: Response): Promise<void> {
+    const { national_id } = req.query;
 
-  try {
-    const query = `
-            UPDATE Customer 
-            SET phone_number = $1, address = $2 
-            WHERE customer_id = $3 
-            RETURNING *;
-        `;
-    const result = await pool.query(query, [phone_number, address, id]);
+    try {
+      const query = `SELECT * FROM Customer WHERE national_id = $1;`;
+      const result = await pool.query(query, [national_id]);
 
-    res
-      .status(200)
-      .json({ message: "Customer information updated.", customer: result.rows[0] });
-  } catch (error: any) {
-    console.error("Error updating customer:", error);
-    res.status(500).json({ error: "Error occurred while updating customer information." });
+      if (result.rows.length === 0) {
+        res.status(404).json({ message: "Customer not found." });
+        return;
+      }
+
+      res.status(200).json(result.rows[0]);
+    } catch (error: any) {
+      console.error("Error searching customer:", error);
+      res
+        .status(500)
+        .json({ error: "Error occurred while searching for customer." });
+    }
   }
-};
+
+  async updateCustomer(req: Request, res: Response): Promise<void> {
+    const { id } = req.params;
+    const { phone_number, address } = req.body;
+
+    try {
+      const query = `
+              UPDATE Customer 
+              SET phone_number = $1, address = $2 
+              WHERE customer_id = $3 
+              RETURNING *;
+          `;
+      const result = await pool.query(query, [phone_number, address, id]);
+
+      res
+        .status(200)
+        .json({
+          message: "Customer information updated.",
+          customer: result.rows[0],
+        });
+    } catch (error: any) {
+      console.error("Error updating customer:", error);
+      res
+        .status(500)
+        .json({ error: "Error occurred while updating customer information." });
+    }
+  }
+}
+
+export default new CustomerController();
