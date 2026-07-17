@@ -13,7 +13,7 @@ import Controller from "./baseController";
  * @swagger
  * /api/loans:
  *   post:
- *     summary: Register new loan for customer
+ *     summary: Register a new loan for a customer's account
  *     tags: [Loans]
  *     security:
  *       - bearerAuth: []
@@ -23,6 +23,12 @@ import Controller from "./baseController";
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - account_id
+ *               - total_amount
+ *               - interest_rate
+ *               - start_date
+ *               - end_date
  *             properties:
  *               account_id:
  *                 type: integer
@@ -36,14 +42,20 @@ import Controller from "./baseController";
  *               start_date:
  *                 type: string
  *                 format: date
- *                 example: "2024-01-01"
+ *                 example: "2026-01-01"
  *               end_date:
  *                 type: string
  *                 format: date
- *                 example: "2026-01-01"
+ *                 example: "2028-01-01"
  *     responses:
  *       201:
  *         description: Loan registered successfully
+ *       400:
+ *         description: Missing fields or invalid values (e.g., total_amount must be greater than 0)
+ *       404:
+ *         description: Bank account not found
+ *       500:
+ *         description: Internal server error
  */
 
 /**
@@ -60,17 +72,21 @@ import Controller from "./baseController";
  *         required: true
  *         schema:
  *           type: integer
- *         description: Loan ID
+ *         description: The internal Loan ID
  *     responses:
  *       200:
  *         description: Loan status and installment list retrieved successfully
+ *       44:
+ *         description: Loan not found
+ *       500:
+ *         description: Internal server error
  */
 
 /**
  * @swagger
  * /api/installments/{installmentId}/pay:
  *   put:
- *     summary: Register payment for an installment
+ *     summary: Register payment for a pending installment
  *     tags: [Loans]
  *     security:
  *       - bearerAuth: []
@@ -80,10 +96,16 @@ import Controller from "./baseController";
  *         required: true
  *         schema:
  *           type: integer
- *         description: Installment ID
+ *         description: The unique Installment ID
  *     responses:
  *       200:
  *         description: Installment payment registered successfully
+ *       400:
+ *         description: Installment is already paid or cannot be processed
+ *       404:
+ *         description: Installment not found
+ *       500:
+ *         description: Internal server error
  */
 
 class LoanController extends Controller {
@@ -91,7 +113,35 @@ class LoanController extends Controller {
     const { account_id, total_amount, interest_rate, start_date, end_date } =
       req.body;
 
+    if (
+      !account_id ||
+      !total_amount ||
+      interest_rate === undefined ||
+      !start_date ||
+      !end_date
+    ) {
+      return this.errorResponse(res, 400, "All fields are required.");
+    }
+
+    if (Number(total_amount) <= 0) {
+      return this.errorResponse(
+        res,
+        400,
+        "Total amount must be greater than 0.",
+      );
+    }
+
     try {
+      // 1. Validate if the targeted Bank Account exists
+      const accountCheck = await pool.query(
+        "SELECT account_id FROM Account WHERE account_id = $1",
+        [account_id],
+      );
+      if (accountCheck.rows.length === 0) {
+        return this.errorResponse(res, 404, "Target bank account not found.");
+      }
+
+      // 2. Insert new loan
       const query = `
             INSERT INTO Loan (account_id, total_amount, interest_rate, start_date, end_date)
             VALUES ($1, $2, $3, $4, $5)
@@ -104,8 +154,8 @@ class LoanController extends Controller {
         start_date,
         end_date,
       ];
-
       const result = await pool.query(query, values);
+
       this.successResponse(
         res,
         201,
@@ -133,8 +183,7 @@ class LoanController extends Controller {
       const result = await pool.query(query, [loanId]);
 
       if (result.rows.length === 0) {
-        this.errorResponse(res, 404, "Loan not found.");
-        return;
+        return this.errorResponse(res, 404, "Loan not found.");
       }
 
       this.successResponse(
@@ -157,20 +206,33 @@ class LoanController extends Controller {
     const { installmentId } = req.params;
 
     try {
-      const query = `
-            UPDATE Installment 
-            SET status = 'Paid', payment_date = CURRENT_DATE 
-            WHERE installment_id = $1 AND status = 'Pending'
-            RETURNING *;
-        `;
-      const result = await pool.query(query, [installmentId]);
+      // 1. Check if the installment actually exists first
+      const installmentCheck = await pool.query(
+        "SELECT status FROM Installment WHERE installment_id = $1",
+        [installmentId],
+      );
 
-      if (result.rows.length === 0)
+      if (installmentCheck.rows.length === 0) {
+        return this.errorResponse(res, 404, "Installment not found.");
+      }
+
+      const currentStatus = installmentCheck.rows[0].status;
+      if (currentStatus === "Paid") {
         return this.errorResponse(
           res,
           400,
-          "Installment not found or already paid.",
+          "This installment has already been paid.",
         );
+      }
+
+      // 2. Process the payment (updates both 'Pending' or 'Overdue' to 'Paid')
+      const query = `
+            UPDATE Installment 
+            SET status = 'Paid', payment_date = CURRENT_DATE 
+            WHERE installment_id = $1
+            RETURNING *;
+        `;
+      const result = await pool.query(query, [installmentId]);
 
       this.successResponse(
         res,

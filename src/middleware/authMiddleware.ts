@@ -18,25 +18,28 @@ export const authenticateToken = (
     return;
   }
 
-  jwt.verify(
-    token,
-    process.env.JWT_SECRET || "super_secret_bank_key",
-    (err, user) => {
-      if (err) {
-        res.status(403).json({ error: "Invalid or expired token." });
-        return;
-      }
-      req.user = user;
-      next();
-    },
-  );
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    res.status(500).json({ error: "Server configuration error" });
+    return;
+  }
+
+  jwt.verify(token, secret, (err, user) => {
+    if (err) {
+      res.status(403).json({ error: "Invalid or expired token." });
+      return;
+    }
+    req.user = user;
+    next();
+  });
 };
 
 export const authorizeRole = (requiredRoleId: number) => {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
-    if (!req.user || req.user.roleId !== requiredRoleId) {
+    if (!req.user || req.user.roleId > requiredRoleId) {
       res.status(403).json({
-        error: "You do not have the required permissions to perform this action.",
+        error:
+          "You do not have the required permissions to perform this action.",
       });
       return;
     }

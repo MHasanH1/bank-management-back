@@ -23,6 +23,9 @@ import Controller from "./baseController";
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - account_id
+ *               - amount
  *             properties:
  *               account_id:
  *                 type: integer
@@ -32,12 +35,16 @@ import Controller from "./baseController";
  *                 example: 500000
  *               description:
  *                 type: string
- *                 example: Deposit
+ *                 example: Monthly deposit
  *     responses:
  *       201:
  *         description: Deposit completed successfully
  *       400:
- *         description: Invalid transaction type or insufficient account balance
+ *         description: Invalid input or missing fields
+ *       404:
+ *         description: Bank account not found or is not active
+ *       500:
+ *         description: Internal server error
  */
 
 /**
@@ -54,6 +61,9 @@ import Controller from "./baseController";
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - account_id
+ *               - amount
  *             properties:
  *               account_id:
  *                 type: integer
@@ -63,12 +73,16 @@ import Controller from "./baseController";
  *                 example: 200000
  *               description:
  *                 type: string
- *                 example: Withdrawal
+ *                 example: ATM Withdrawal
  *     responses:
  *       201:
  *         description: Withdrawal completed successfully
  *       400:
- *         description: Insufficient account balance
+ *         description: Insufficient account balance or invalid amount
+ *       404:
+ *         description: Bank account not found or is not active
+ *       500:
+ *         description: Internal server error
  */
 
 /**
@@ -85,6 +99,10 @@ import Controller from "./baseController";
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - account_id
+ *               - destination_account_id
+ *               - amount
  *             properties:
  *               account_id:
  *                 type: integer
@@ -101,10 +119,16 @@ import Controller from "./baseController";
  *     responses:
  *       201:
  *         description: Transfer completed successfully
+ *       400:
+ *         description: Invalid accounts, same account transfer, or insufficient balance
+ *       404:
+ *         description: Source or destination account not found/active
+ *       500:
+ *         description: Internal server error
  */
 
 class TransactionController extends Controller {
-  async executeTransaction(
+  private async executeTransaction(
     accountId: number,
     typeTitle: string,
     amount: number,
@@ -112,7 +136,16 @@ class TransactionController extends Controller {
     description: string,
     res: Response,
   ) {
+    if (!accountId || !amount || amount <= 0) {
+      return this.errorResponse(
+        res,
+        400,
+        "Valid account_id and positive amount are required.",
+      );
+    }
+
     try {
+      // 1. Validate Transaction Type
       const typeQuery = `SELECT transaction_type_id FROM TransactionType WHERE title = $1;`;
       const typeResult = await pool.query(typeQuery, [typeTitle]);
 
@@ -122,6 +155,53 @@ class TransactionController extends Controller {
 
       const typeId = typeResult.rows[0].transaction_type_id;
 
+      // 2. Validate Source Account (Must exist and be Active)
+      const srcAccountCheck = await pool.query(
+        "SELECT status, balance FROM Account WHERE account_id = $1",
+        [accountId],
+      );
+      if (srcAccountCheck.rows.length === 0) {
+        return this.errorResponse(res, 404, "Source bank account not found.");
+      }
+      if (srcAccountCheck.rows[0].status !== "Active") {
+        return this.errorResponse(
+          res,
+          400,
+          `Source account is currently ${srcAccountCheck.rows[0].status}. Transactions are not allowed.`,
+        );
+      }
+
+      // 3. Validate Destination Account if it's a Transfer
+      if (typeTitle === "Transfer" && destAccountId) {
+        if (accountId === destAccountId) {
+          return this.errorResponse(
+            res,
+            400,
+            "Source and destination accounts cannot be the same.",
+          );
+        }
+
+        const destAccountCheck = await pool.query(
+          "SELECT status FROM Account WHERE account_id = $1",
+          [destAccountId],
+        );
+        if (destAccountCheck.rows.length === 0) {
+          return this.errorResponse(
+            res,
+            404,
+            "Destination bank account not found.",
+          );
+        }
+        if (destAccountCheck.rows[0].status !== "Active") {
+          return this.errorResponse(
+            res,
+            400,
+            "Destination account is not active.",
+          );
+        }
+      }
+
+      // 4. Insert transaction (Trigger will fire automatically and handle balance updates)
       const insertQuery = `
             INSERT INTO Transaction (account_id, transaction_type_id, amount, destination_account_id, description)
             VALUES ($1, $2, $3, $4, $5)
@@ -132,7 +212,7 @@ class TransactionController extends Controller {
         typeId,
         amount,
         destAccountId,
-        description,
+        description || null,
       ];
 
       const result = await pool.query(insertQuery, insertValues);
@@ -143,6 +223,7 @@ class TransactionController extends Controller {
         result.rows[0],
       );
     } catch (error: any) {
+      // Catch PostgreSQL Check Constraint error (code 23514) triggered by 'chk_balance_positive'
       if (error.code === "23514") {
         return this.errorResponse(res, 400, "Insufficient account balance.");
       }
@@ -182,10 +263,15 @@ class TransactionController extends Controller {
   async transfer(req: Request, res: Response): Promise<void> {
     const { account_id, destination_account_id, amount, description } =
       req.body;
+
     if (!destination_account_id) {
-      res.status(400).json({ error: "Destination account ID is required." });
-      return;
+      return this.errorResponse(
+        res,
+        400,
+        "Destination account ID is required.",
+      );
     }
+
     await this.executeTransaction(
       account_id,
       "Transfer",

@@ -3,9 +3,9 @@ INSERT INTO Roles (role_name) VALUES
 ('Employee') ON CONFLICT (role_name) DO NOTHING;
 
 INSERT INTO AccountType (title, interest_rate) VALUES 
-('حساب جاری', 0.00),
-('سپرده پس‌انداز', 5.00),
-('سپرده کوتاه‌مدت', 15.00) ON CONFLICT (title) DO NOTHING;
+('Checking Account', 0.00),
+('Savings Account', 5.00),
+('Short-term Deposit', 15.00) ON CONFLICT (title) DO NOTHING;
 
 INSERT INTO TransactionType (title) VALUES 
 ('Deposit'),    
@@ -13,7 +13,7 @@ INSERT INTO TransactionType (title) VALUES
 ('Transfer') ON CONFLICT (title) DO NOTHING;
 
 INSERT INTO Branch (branch_code, branch_name, city, address) VALUES 
-('BR-1001', 'شعبه مرکزی', 'تهران', 'خیابان اصلی، پلاک ۱') ON CONFLICT (branch_code) DO NOTHING;
+('BR-1001', 'Central Branch', 'Tehran', 'Main Street, No 1') ON CONFLICT (branch_code) DO NOTHING;
 
 INSERT INTO SystemUser (username, password_hash, role_id) 
 VALUES (
