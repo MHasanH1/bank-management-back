@@ -81,7 +81,7 @@ import Controller from "./baseController";
 /**
  * @swagger
  * /api/accounts/{accountNumber}/close:
- *   put:
+ *   patch:
  *     summary: Close a bank account (change status to Closed)
  *     tags: [Accounts]
  *     security:
@@ -107,39 +107,33 @@ class AccountController extends Controller {
     const { account_number, customer_id, branch_id, account_type_id } =
       req.body;
 
-    if (!account_number || !customer_id || !branch_id || !account_type_id) {
+    if (!account_number || !customer_id || !branch_id || !account_type_id)
       return this.errorResponse(res, 400, "All fields are required.");
-    }
 
     try {
-      // 1. Validate Branch existence
       const existingBranch = await pool.query(
         "SELECT branch_id FROM Branch WHERE branch_id = $1",
         [branch_id],
       );
-      if (existingBranch.rows.length === 0) {
-        return this.errorResponse(res, 404, "Branch not found.");
-      }
 
-      // 2. Validate Customer existence
+      if (existingBranch.rows.length === 0)
+        return this.errorResponse(res, 404, "Branch not found.");
+
       const existingCustomer = await pool.query(
         "SELECT customer_id FROM Customer WHERE customer_id = $1",
         [customer_id],
       );
-      if (existingCustomer.rows.length === 0) {
-        return this.errorResponse(res, 404, "Customer not found.");
-      }
 
-      // 3. Validate Account Type existence
+      if (existingCustomer.rows.length === 0)
+        return this.errorResponse(res, 404, "Customer not found.");
+
       const existingType = await pool.query(
         "SELECT account_type_id FROM AccountType WHERE account_type_id = $1",
         [account_type_id],
       );
-      if (existingType.rows.length === 0) {
+      if (existingType.rows.length === 0)
         return this.errorResponse(res, 404, "Account type not found.");
-      }
 
-      // 4. Insert new account
       const query = `
           INSERT INTO Account (account_number, customer_id, branch_id, account_type_id)
           VALUES ($1, $2, $3, $4)
@@ -155,10 +149,8 @@ class AccountController extends Controller {
         result.rows[0],
       );
     } catch (error: any) {
-      // Catch PostgreSQL Unique Violation error (code 23505)
-      if (error.code === "23505") {
+      if (error.code === "23505")
         return this.errorResponse(res, 409, "Account number already exists.");
-      }
 
       console.error("Error opening account:", error);
       this.errorResponse(

@@ -62,16 +62,40 @@ import Controller from "./baseController";
  *         description: Internal server error
  */
 
+/**
+ * @swagger
+ * /api/employees/{id}:
+ *  delete:
+ *     summary: Delete employee
+ *     tags: [Employees]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Internal Employee ID
+ *     responses:
+ *       200:
+ *         description: Employee deleted successfully
+ *       400:
+ *        description: Missing id
+ *       404:
+ *         description: Employee not found
+ *       500:
+ *         description: Internal server error
+ */
+
 class EmployeeController extends Controller {
   async registerEmployee(req: Request, res: Response): Promise<void> {
     const { first_name, last_name, national_id, branch_id, user_id } = req.body;
 
-    if (!first_name || !last_name || !national_id || !branch_id || !user_id) {
+    if (!first_name || !last_name || !national_id || !branch_id || !user_id)
       return this.errorResponse(res, 400, "All fields are required.");
-    }
 
     try {
-      // 1. Validate if the National ID already exists
       const employeeExists = await pool.query(
         "SELECT employee_id FROM Employee WHERE national_id = $1",
         [national_id],
@@ -84,7 +108,6 @@ class EmployeeController extends Controller {
         );
       }
 
-      // 2. Validate if the Branch actually exists
       const branchExists = await pool.query(
         "SELECT branch_id FROM Branch WHERE branch_id = $1",
         [branch_id],
@@ -97,7 +120,6 @@ class EmployeeController extends Controller {
         );
       }
 
-      // 3. Validate if the System User actually exists
       const userExists = await pool.query(
         "SELECT user_id FROM SystemUser WHERE user_id = $1",
         [user_id],
@@ -110,7 +132,6 @@ class EmployeeController extends Controller {
         );
       }
 
-      // 4. Validate if the user_id is already linked to another employee (Unique constraint check)
       const userLinked = await pool.query(
         "SELECT employee_id FROM Employee WHERE user_id = $1",
         [user_id],
@@ -145,6 +166,25 @@ class EmployeeController extends Controller {
         500,
         "Error occurred while registering employee.",
       );
+    }
+  }
+
+  async deleteEmployee(req: Request, res: Response): Promise<void> {
+    const { id } = req.params;
+
+    if (!id) return this.errorResponse(res, 400, "Missing id");
+
+    try {
+      const query = `DELETE FROM Employee WHERE employee_id = $1;`;
+      const result = await pool.query(query, [id]);
+
+      if (result.rowCount === 0)
+        return this.errorResponse(res, 404, "Employee not found");
+
+      this.successResponse(res, 201, "Employee deleted successfully");
+    } catch (error) {
+      console.log("Error while deleting an employee", error);
+      this.errorResponse(res, 500, "Internal server error", error);
     }
   }
 }

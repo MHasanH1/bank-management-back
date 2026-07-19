@@ -4,11 +4,11 @@ import { authorizeRole } from "../middleware/authMiddleware";
 
 const router = express.Router();
 
-router.post("/", authorizeRole(2), accountController.openAccount);
+router.post("/", authorizeRole([1, 2]), accountController.openAccount);
 router.get("/:accountNumber", accountController.getAccountDetails);
-router.put(
+router.patch(
   "/:accountNumber/close",
-  authorizeRole(2),
+  authorizeRole([1, 2]),
   accountController.closeAccount,
 );
 

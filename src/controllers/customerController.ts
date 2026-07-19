@@ -84,7 +84,7 @@ import Controller from "./baseController";
 /**
  * @swagger
  * /api/customers/{id}:
- *   put:
+ *   patch:
  *     summary: Update customer information
  *     tags: [Customers]
  *     security:
@@ -120,6 +120,28 @@ import Controller from "./baseController";
  *         description: Customer not found
  *       409:
  *         description: Phone number is already in use by another customer
+ *       500:
+ *         description: Internal server error
+ *
+ *  delete:
+ *     summary: Delete customer
+ *     tags: [Customers]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Internal Customer ID
+ *     responses:
+ *       200:
+ *         description: Customer deleted successfully
+ *       400:
+ *        description: Missing id
+ *       404:
+ *         description: Customer not found
  *       500:
  *         description: Internal server error
  */
@@ -159,7 +181,6 @@ class CustomerController extends Controller {
         result.rows[0],
       );
     } catch (error: any) {
-      // Handle Postgres unique constraints violation (code 23505)
       if (error.code === "23505") {
         return this.errorResponse(
           res,
@@ -229,10 +250,8 @@ class CustomerController extends Controller {
       `;
       const result = await pool.query(query, [phone_number, address, id]);
 
-      // If no rows affected, means customer_id didn't exist
-      if (result.rows.length === 0) {
+      if (result.rows.length === 0)
         return this.errorResponse(res, 404, "Customer not found.");
-      }
 
       this.successResponse(
         res,
@@ -241,7 +260,6 @@ class CustomerController extends Controller {
         result.rows[0],
       );
     } catch (error: any) {
-      // Handle unique key constraint if someone updates to a phone number owned by another customer
       if (error.code === "23505") {
         return this.errorResponse(
           res,
@@ -256,6 +274,25 @@ class CustomerController extends Controller {
         500,
         "Error occurred while updating customer information.",
       );
+    }
+  }
+
+  async deleteCustomer(req: Request, res: Response): Promise<void> {
+    const { id } = req.params;
+
+    if (!id) return this.errorResponse(res, 400, "Missing id");
+
+    try {
+      const query = `DELETE FROM Customer WHERE customer_id = $1;`;
+      const result = await pool.query(query, [id]);
+
+      if (result.rowCount === 0)
+        return this.errorResponse(res, 404, "Customer not found.");
+
+      this.successResponse(res, 201, "Customer deleted successfully.");
+    } catch (error: any) {
+      console.error("Error deleting customer:", error);
+      this.errorResponse(res, 500, "Error occurred while deleting customer.");
     }
   }
 }

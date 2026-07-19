@@ -20,7 +20,7 @@ router.use("/loans", authenticateToken, loanRoutes);
 router.put(
   "/api/installments/:installmentId/pay",
   authenticateToken,
-  authorizeRole(2),
+  authorizeRole([1, 2]),
   loanController.payInstallment,
 );
 

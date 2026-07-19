@@ -145,7 +145,6 @@ class TransactionController extends Controller {
     }
 
     try {
-      // 1. Validate Transaction Type
       const typeQuery = `SELECT transaction_type_id FROM TransactionType WHERE title = $1;`;
       const typeResult = await pool.query(typeQuery, [typeTitle]);
 
@@ -155,7 +154,6 @@ class TransactionController extends Controller {
 
       const typeId = typeResult.rows[0].transaction_type_id;
 
-      // 2. Validate Source Account (Must exist and be Active)
       const srcAccountCheck = await pool.query(
         "SELECT status, balance FROM Account WHERE account_id = $1",
         [accountId],
@@ -171,7 +169,6 @@ class TransactionController extends Controller {
         );
       }
 
-      // 3. Validate Destination Account if it's a Transfer
       if (typeTitle === "Transfer" && destAccountId) {
         if (accountId === destAccountId) {
           return this.errorResponse(
@@ -201,7 +198,6 @@ class TransactionController extends Controller {
         }
       }
 
-      // 4. Insert transaction (Trigger will fire automatically and handle balance updates)
       const insertQuery = `
             INSERT INTO Transaction (account_id, transaction_type_id, amount, destination_account_id, description)
             VALUES ($1, $2, $3, $4, $5)
@@ -223,7 +219,6 @@ class TransactionController extends Controller {
         result.rows[0],
       );
     } catch (error: any) {
-      // Catch PostgreSQL Check Constraint error (code 23514) triggered by 'chk_balance_positive'
       if (error.code === "23514") {
         return this.errorResponse(res, 400, "Insufficient account balance.");
       }

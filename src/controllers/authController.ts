@@ -101,12 +101,10 @@ class AuthController extends Controller {
       );
     }
 
-    if (typeof role_id !== "number") {
+    if (typeof role_id !== "number")
       return this.errorResponse(res, 400, "role_id must be a number.");
-    }
 
     try {
-      // 1. Check if username already exists
       const userCheck = await pool.query(
         "SELECT username FROM SystemUser WHERE username = $1",
         [username],
@@ -120,7 +118,6 @@ class AuthController extends Controller {
         );
       }
 
-      // 2. Validate if the role_id actually exists in the Roles table
       const roleCheck = await pool.query(
         "SELECT role_id FROM Roles WHERE role_id = $1",
         [role_id],
@@ -134,7 +131,6 @@ class AuthController extends Controller {
         );
       }
 
-      // 3. Hash password and insert user
       const saltRounds = 10;
       const passwordHash = await bcrypt.hash(password, saltRounds);
 
@@ -173,18 +169,15 @@ class AuthController extends Controller {
       const query = `SELECT * FROM SystemUser WHERE username = $1;`;
       const result = await pool.query(query, [username]);
 
-      if (result.rows.length === 0) {
+      if (result.rows.length === 0)
         return this.errorResponse(res, 401, "Invalid username or password.");
-      }
 
       const user = result.rows[0];
 
       const isMatch = await bcrypt.compare(password, user.password_hash);
-      if (!isMatch) {
+      if (!isMatch)
         return this.errorResponse(res, 401, "Invalid username or password.");
-      }
 
-      // Ensure JWT_SECRET is configured
       if (!process.env.JWT_SECRET) {
         console.error("JWT_SECRET is missing from environment variables.");
         return this.errorResponse(

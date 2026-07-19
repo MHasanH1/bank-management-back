@@ -7,7 +7,7 @@ const router = express.Router();
 router.post(
   "/register",
   authenticateToken,
-  authorizeRole(1),
+  authorizeRole([1]),
   authController.registerUser,
 );
 router.post("/login", authController.loginUser);

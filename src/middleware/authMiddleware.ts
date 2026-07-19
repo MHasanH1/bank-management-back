@@ -34,9 +34,9 @@ export const authenticateToken = (
   });
 };
 
-export const authorizeRole = (requiredRoleId: number) => {
+export const authorizeRole = (requiredRoleIds: number[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
-    if (!req.user || req.user.roleId > requiredRoleId) {
+    if (!req.user || !requiredRoleIds.includes(req.user.roleId)) {
       res.status(403).json({
         error:
           "You do not have the required permissions to perform this action.",

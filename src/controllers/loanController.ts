@@ -119,9 +119,8 @@ class LoanController extends Controller {
       interest_rate === undefined ||
       !start_date ||
       !end_date
-    ) {
+    )
       return this.errorResponse(res, 400, "All fields are required.");
-    }
 
     if (Number(total_amount) <= 0) {
       return this.errorResponse(
@@ -132,16 +131,14 @@ class LoanController extends Controller {
     }
 
     try {
-      // 1. Validate if the targeted Bank Account exists
       const accountCheck = await pool.query(
         "SELECT account_id FROM Account WHERE account_id = $1",
         [account_id],
       );
-      if (accountCheck.rows.length === 0) {
-        return this.errorResponse(res, 404, "Target bank account not found.");
-      }
 
-      // 2. Insert new loan
+      if (accountCheck.rows.length === 0)
+        return this.errorResponse(res, 404, "Target bank account not found.");
+
       const query = `
             INSERT INTO Loan (account_id, total_amount, interest_rate, start_date, end_date)
             VALUES ($1, $2, $3, $4, $5)
@@ -154,6 +151,7 @@ class LoanController extends Controller {
         start_date,
         end_date,
       ];
+
       const result = await pool.query(query, values);
 
       this.successResponse(
@@ -206,7 +204,6 @@ class LoanController extends Controller {
     const { installmentId } = req.params;
 
     try {
-      // 1. Check if the installment actually exists first
       const installmentCheck = await pool.query(
         "SELECT status FROM Installment WHERE installment_id = $1",
         [installmentId],
@@ -225,7 +222,6 @@ class LoanController extends Controller {
         );
       }
 
-      // 2. Process the payment (updates both 'Pending' or 'Overdue' to 'Paid')
       const query = `
             UPDATE Installment 
             SET status = 'Paid', payment_date = CURRENT_DATE 
