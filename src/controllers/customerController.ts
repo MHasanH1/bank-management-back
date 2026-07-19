@@ -123,7 +123,7 @@ import Controller from "./baseController";
  *       500:
  *         description: Internal server error
  *
- *  delete:
+ *   delete:
  *     summary: Delete customer
  *     tags: [Customers]
  *     security:
@@ -289,7 +289,7 @@ class CustomerController extends Controller {
       if (result.rowCount === 0)
         return this.errorResponse(res, 404, "Customer not found.");
 
-      this.successResponse(res, 201, "Customer deleted successfully.");
+      this.successResponse(res, 200, "Customer deleted successfully.");
     } catch (error: any) {
       console.error("Error deleting customer:", error);
       this.errorResponse(res, 500, "Error occurred while deleting customer.");

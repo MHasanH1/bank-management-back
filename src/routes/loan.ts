@@ -4,7 +4,7 @@ import { authorizeRole } from "../middleware/authMiddleware";
 
 const router = express.Router();
 
-router.post("/", authorizeRole([1, 2]), loanController.registerLoan);
 router.get("/:loanId", loanController.getLoanStatus);
+router.post("/", authorizeRole([1, 2]), loanController.registerLoan);
 
 export default router;

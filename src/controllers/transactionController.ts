@@ -198,25 +198,43 @@ class TransactionController extends Controller {
         }
       }
 
-      const insertQuery = `
-            INSERT INTO Transaction (account_id, transaction_type_id, amount, destination_account_id, description)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING *;
-        `;
-      const insertValues = [
-        accountId,
-        typeId,
-        amount,
-        destAccountId,
-        description || null,
-      ];
+      let transactionResult;
 
-      const result = await pool.query(insertQuery, insertValues);
+      if (typeTitle === "Transfer") {
+        const procedureQuery = `CALL sp_execute_transfer($1, $2, $3, $4, null);`;
+        await pool.query(procedureQuery, [
+          accountId,
+          destAccountId,
+          amount,
+          description || null,
+        ]);
+
+        // Fetch the newly created transaction to return to user (since CALL doesn't return rows directly like INSERT...RETURNING)
+        const fetchQuery = `SELECT * FROM Transaction WHERE account_id = $1 ORDER BY transaction_date DESC LIMIT 1`;
+        const fetchResult = await pool.query(fetchQuery, [accountId]);
+        transactionResult = fetchResult.rows[0];
+      } else {
+        const insertQuery = `
+          INSERT INTO Transaction (account_id, transaction_type_id, amount, destination_account_id, description)
+          VALUES ($1, $2, $3, $4, $5)
+          RETURNING *;
+        `;
+        const insertValues = [
+          accountId,
+          typeId,
+          amount,
+          destAccountId,
+          description || null,
+        ];
+        const result = await pool.query(insertQuery, insertValues);
+        transactionResult = result.rows[0];
+      }
+
       this.successResponse(
         res,
         201,
         "Transaction completed successfully.",
-        result.rows[0],
+        transactionResult,
       );
     } catch (error: any) {
       if (error.code === "23514") {

@@ -76,7 +76,7 @@ import Controller from "./baseController";
  *     responses:
  *       200:
  *         description: Loan status and installment list retrieved successfully
- *       44:
+ *       404:
  *         description: Loan not found
  *       500:
  *         description: Internal server error
@@ -171,13 +171,23 @@ class LoanController extends Controller {
 
     try {
       const query = `
-            SELECT l.*, 
-                   COALESCE(json_agg(i.*) FILTER (WHERE i.installment_id IS NOT NULL), '[]') as installments
-            FROM Loan l
-            LEFT JOIN Installment i ON l.loan_id = i.loan_id
-            WHERE l.loan_id = $1
-            GROUP BY l.loan_id;
-        `;
+        SELECT v.*, 
+               COALESCE(json_agg(i.*) FILTER (WHERE i.installment_id IS NOT NULL), '[]') as installments
+        FROM vw_customer_loans v
+        LEFT JOIN Installment i ON v.loan_id = i.loan_id
+        WHERE v.loan_id = $1
+        GROUP BY 
+               v.loan_id, 
+               v.customer_id, 
+               v.customer_name, 
+               v.national_id, 
+               v.account_number, 
+               v.loan_amount, 
+               v.interest_rate, 
+               v.loan_status, 
+               v.start_date, 
+               v.end_date;
+      `;
       const result = await pool.query(query, [loanId]);
 
       if (result.rows.length === 0) {
