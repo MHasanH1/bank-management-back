@@ -5,7 +5,9 @@
   "scripts": {
     "start": "npm run db:setup && ts-node src/server.ts",
     "dev": " npm run db:setup && ts-node-dev --respawn --transpile-only src/server.ts",
-    "db:setup": "ts-node src/db/init.ts"
+    "db:setup": "ts-node src/db/init.ts",
+    "build": "tsc",
+    "docker:build": "docker build -t bank-management-back:latest ."
   },
   "keywords": [],
   "author": "",

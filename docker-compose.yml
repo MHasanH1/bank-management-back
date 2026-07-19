@@ -1,0 +1,47 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: db-user
+      POSTGRES_PASSWORD: dbuser
+      POSTGRES_DB: db-proj
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U db-user -d db-proj"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backup:
+    image: offen/docker-volume-backup:v2
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - pg-data:/backup/pg-data:ro
+      - ./backups:/archive
+    environment:
+      TZ: Asia/Tehran
+      BACKUP_CRON_EXPRESSION: "0 3 * * *"
+      BACKUP_RETENTION_DAYS: "7"
+
+  main:
+    image: "bank-management-back:latest"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_USER: db-user
+      DB_HOST: postgres
+      DB_NAME: db-proj
+      DB_PASSWORD: dbuser
+      DB_PORT: 5432
+      JWT_SECRET: FyPJGEhuQh6v6cjTxEIBbxueEXqqtbDZMm6t+hB5v/M=
+      PORT: 6000
+    ports:
+      - "6000:6000"
+    restart: unless-stopped
+
+volumes:
+  pg-data:
