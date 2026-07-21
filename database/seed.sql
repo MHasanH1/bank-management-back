@@ -1,3 +1,5 @@
+ALTER SEQUENCE roles_role_id_seq RESTART WITH 1;
+
 INSERT INTO Roles (role_name) VALUES 
 ('Administrator'),
 ('Employee') ON CONFLICT (role_name) DO NOTHING;
