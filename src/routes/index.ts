@@ -2,6 +2,7 @@ import express from "express";
 import { authenticateToken, authorizeRole } from "../middleware/authMiddleware";
 import authRoutes from "./auth";
 import accountRoutes from "./account";
+import branchRoutes from "./branch";
 import employeeRoutes from "./employee";
 import customerRoutes from "./customer";
 import transactionRoutes from "./transaction";
@@ -11,6 +12,7 @@ import { loanController } from "../controllers";
 const router = express.Router();
 
 router.use("/auth", authRoutes);
+router.use("/branches", authenticateToken, branchRoutes);
 router.use("/accounts", authenticateToken, accountRoutes);
 router.use("/employees", authenticateToken, employeeRoutes);
 router.use("/customers", authenticateToken, customerRoutes);
