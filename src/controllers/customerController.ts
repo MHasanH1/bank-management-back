@@ -12,6 +12,17 @@ import Controller from "./baseController";
 /**
  * @swagger
  * /api/customers:
+ *   get:
+ *     summary: Add a new customer to the system
+ *     tags: [Customers]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Customer information found
+ *       500:
+ *         description: Internal server error
+ *
  *   post:
  *     summary: Add a new customer to the system
  *     tags: [Customers]
@@ -191,6 +202,23 @@ class CustomerController extends Controller {
 
       console.error("Error adding customer:", error);
       this.errorResponse(res, 500, "Error occurred while adding customer.");
+    }
+  }
+
+  async getAllCustomers(req: Request, res: Response): Promise<void> {
+    try {
+      const query = `SELECT * FROM Customer;`;
+      const result = await pool.query(query, []);
+
+      this.successResponse(
+        res,
+        200,
+        "Customer information found.",
+        result.rows,
+      );
+    } catch (error: any) {
+      console.error("Error getting customers:", error);
+      this.errorResponse(res, 500, "Error occurred while getting customers.");
     }
   }
 

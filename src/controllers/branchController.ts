@@ -186,7 +186,7 @@ class BranchController extends Controller {
         res,
         200,
         "Branch information found.",
-        result.rows[0],
+        result.rows,
       );
     } catch (error: any) {
       console.error("Error searching branch:", error);
