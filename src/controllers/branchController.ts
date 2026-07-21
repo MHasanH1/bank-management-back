@@ -5,16 +5,16 @@ import Controller from "./baseController";
 /**
  * @swagger
  * tags:
- *   name: Customers
- *   description: Customer management endpoints
+ *   name: Branches
+ *   description: Branch management endpoints
  */
 
 /**
  * @swagger
- * /api/customers:
+ * /api/branches:
  *   post:
- *     summary: Add a new customer to the system
- *     tags: [Customers]
+ *     summary: Add a new branch to the system
+ *     tags: [Branches]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -24,69 +24,63 @@ import Controller from "./baseController";
  *           schema:
  *             type: object
  *             required:
- *               - first_name
- *               - last_name
- *               - national_id
- *               - phone_number
+ *               - branch_code
+ *               - branch_name
+ *               - city
  *             properties:
- *               first_name:
+ *               branch_code:
  *                 type: string
- *                 example: Ali
- *               last_name:
+ *                 example: "BR-1001"
+ *               branch_name:
  *                 type: string
- *                 example: Rezaei
- *               national_id:
+ *                 example: "Central Branch"
+ *               city:
  *                 type: string
- *                 example: "1234567890"
- *               phone_number:
- *                 type: string
- *                 example: "09123456789"
+ *                 example: "Shiraz"
  *               address:
  *                 type: string
  *                 example: Tehran, Vali Asr Avenue
  *     responses:
  *       201:
- *         description: Customer added successfully
+ *         description: Branch added successfully
  *       400:
  *         description: Missing required fields
  *       409:
- *         description: Customer with this National ID or Phone Number already exists
+ *         description: Branch with this National ID or Phone Number already exists
  *       500:
  *         description: Internal server error
  */
 
 /**
  * @swagger
- * /api/customers/search:
+ * /api/branches/search:
  *   get:
- *     summary: Search for a customer by national ID
- *     tags: [Customers]
+ *     summary: Search for a branch by branch name
+ *     tags: [Branches]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
- *         name: national_id
+ *         name: branch_name
  *         schema:
  *           type: string
- *         required: true
- *         description: Customer's unique 10-digit national ID
+ *         required: false
+ *         description: Branch's branch name
  *     responses:
  *       200:
- *         description: Customer information found
- *       400:
- *         description: National ID parameter is required
+ *         description: Branch information found
  *       404:
- *         description: Customer not found
+ *         description: Branch not found
  *       500:
  *         description: Internal server error
  */
 
 /**
  * @swagger
- * /api/customers/{id}:
+ * /api/branches/{id}:
  *   patch:
- *     summary: Update customer information
- *     tags: [Customers]
+ *     summary: Update branch information
+ *     tags: [Branches]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -95,37 +89,28 @@ import Controller from "./baseController";
  *         required: true
  *         schema:
  *           type: integer
- *         description: Internal Customer ID
+ *         description: Internal Branch ID
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - phone_number
  *             properties:
- *               phone_number:
- *                 type: string
- *                 example: "09999999999"
  *               address:
  *                 type: string
  *                 example: New Address
  *     responses:
  *       200:
- *         description: Customer information updated successfully
- *       400:
- *         description: Phone number is required or ID is invalid
+ *         description: Branch information updated successfully
  *       404:
- *         description: Customer not found
- *       409:
- *         description: Phone number is already in use by another customer
+ *         description: Branch not found
  *       500:
  *         description: Internal server error
  *
  *   delete:
- *     summary: Delete customer
- *     tags: [Customers]
+ *     summary: Delete branch
+ *     tags: [Branches]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -134,14 +119,14 @@ import Controller from "./baseController";
  *         required: true
  *         schema:
  *           type: integer
- *         description: Internal Customer ID
+ *         description: Internal Branch ID
  *     responses:
  *       200:
- *         description: Customer deleted successfully
+ *         description: Branch deleted successfully
  *       400:
  *        description: Missing id
  *       404:
- *         description: Customer not found
+ *         description: Branch not found
  *       500:
  *         description: Internal server error
  */
